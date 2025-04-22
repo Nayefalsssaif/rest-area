@@ -1,4 +1,5 @@
-# Rest Area Manager - Python App for Friends (موسع بإدخال بيانات الأفراد والمصروفات)
+
+# Rest Area Manager - Cloud-Compatible Version (بدون تخزين محلي)
 
 import pandas as pd
 import streamlit as st
@@ -11,76 +12,67 @@ st.title("📋 نظام إدارة الاستراحة")
 sections = ["الاشتراكات الشهرية", "الأعمال", "المطبخ", "الطلبات"]
 section = st.sidebar.selectbox("اختر القسم", sections)
 
-# البيانات الأساسية للأفراد (مع جدول شهري)
+# بيانات الاشتراكات مؤقتة
 def initialize_subscriptions():
     months = ["Mar-25", "Apr-25", "May-25", "Jun-25", "Jul-25", "Aug-25", "Sep-25", "Oct-25", "Nov-25", "Dec-25"]
     members = [
         "سلطان الغبيوي", "محمد الحافي", "تركي الغبيوي", "يوسف الحربي", "نواف الغضباني", "عبدالله الطويل",
-        "نايف الحافي", "بدر السبيعي", "عبدالرحمن الغنامي", "دليم الحمادي", "نايف الحافي", "باصر المطيري", "عبدالعزيز الشمري"
+        "نايف الحافي", "بدر السبيعي", "عبدالرحمن الغنامي", "دليم الحمادي", "باصر المطيري", "عبدالعزيز الشمري"
     ]
     df = pd.DataFrame(0, index=members, columns=months)
     df.loc[:, "Mar-25"] = 300
     df.index.name = "الأفراد"
     return df.reset_index()
 
-# بيانات الأعمال والمطبخ الأساسية
 def default_list_data(items):
     return pd.DataFrame({"العنصر": items, "القيمة": [0] * len(items)})
 
-# تحميل البيانات أو البدء من الصفر
-@st.cache_data
-def load_or_create(sheet, _default_func):
-    try:
-        df = pd.read_excel("rest_data.xlsx", sheet_name=sheet)
-    except:
-        df = _default_func()
-    return df
+# ====== استخدام session_state لتخزين مؤقت ======
+if "data" not in st.session_state:
+    st.session_state.data = {
+        "الاشتراكات": initialize_subscriptions(),
+        "الأعمال": default_list_data(["كهرباء", "زراعة", "اثاث", "بلاستيكيات", "مناديل", "راتب العامل", "غاز"]),
+        "المطبخ": default_list_data(["ماء", "شاهي", "قهوه", "بهارات", "رز", "دجاج", "خضار"]),
+        "الطلبات": pd.DataFrame(columns=["الصنف", "الكمية", "الحالة", "التاريخ"])
+    }
 
-# حفظ البيانات
-def save_data(df, sheet):
-    with pd.ExcelWriter("rest_data.xlsx", engine="openpyxl", mode="a", if_sheet_exists='replace') as writer:
-        df.to_excel(writer, sheet_name=sheet, index=False)
-
-# قسم الاشتراكات الشهرية
+# عرض صفحة الاشتراكات
 if section == "الاشتراكات الشهرية":
     st.header("💳 الاشتراكات الشهرية")
-    df = load_or_create("الاشتراكات", initialize_subscriptions)
+    df = st.session_state.data["الاشتراكات"]
     edited = st.data_editor(df, use_container_width=True, num_rows="dynamic")
-    if st.button("💾 حفظ الاشتراكات"):
-        save_data(edited, "الاشتراكات")
-        st.success("تم حفظ البيانات بنجاح")
+    if st.button("💾 تحديث الاشتراكات"):
+        st.session_state.data["الاشتراكات"] = edited
+        st.success("تم تحديث الاشتراكات مؤقتًا")
 
-# قسم الأعمال
+# عرض صفحة الأعمال
 elif section == "الأعمال":
     st.header("🛠️ مصروفات الأعمال")
-    items = ["كهرباء", "زراعة", "اثاث", "بلاستيكيات", "مناديل", "راتب العامل", "غاز"]
-    df = load_or_create("الأعمال", lambda: default_list_data(items))
+    df = st.session_state.data["الأعمال"]
     edited = st.data_editor(df, use_container_width=True)
-    if st.button("💾 حفظ الأعمال"):
-        save_data(edited, "الأعمال")
-        st.success("تم حفظ البيانات")
+    if st.button("💾 تحديث الأعمال"):
+        st.session_state.data["الأعمال"] = edited
+        st.success("تم تحديث البيانات مؤقتًا")
 
-# قسم المطبخ
+# عرض صفحة المطبخ
 elif section == "المطبخ":
     st.header("🍽️ مصروفات المطبخ")
-    items = ["ماء", "شاهي", "قهوه", "بهارات", "رز", "دجاج", "خضار"]
-    df = load_or_create("المطبخ", lambda: default_list_data(items))
+    df = st.session_state.data["المطبخ"]
     edited = st.data_editor(df, use_container_width=True)
-    if st.button("💾 حفظ المطبخ"):
-        save_data(edited, "المطبخ")
-        st.success("تم حفظ البيانات")
+    if st.button("💾 تحديث المطبخ"):
+        st.session_state.data["المطبخ"] = edited
+        st.success("تم تحديث البيانات مؤقتًا")
 
-# الطلبات: للمشتريات المستقبلية أو الطلبات الخاصة
+# عرض صفحة الطلبات
 elif section == "الطلبات":
     st.header("🛒 الطلبات")
-    df = load_or_create("الطلبات", lambda: pd.DataFrame(columns=["الصنف", "الكمية", "الحالة", "التاريخ"]))
+    df = st.session_state.data["الطلبات"]
     item = st.text_input("الصنف")
     qty = st.number_input("الكمية", min_value=1, step=1)
     status = st.selectbox("الحالة", ["مطلوب", "تم الشراء"])
     date = st.date_input("التاريخ", value=datetime.date.today())
     if st.button("➕ إضافة طلب"):
         new_row = pd.DataFrame([[item, qty, status, date]], columns=["الصنف", "الكمية", "الحالة", "التاريخ"])
-        df = pd.concat([df, new_row], ignore_index=True)
-        save_data(df, "الطلبات")
-        st.success("تمت الإضافة")
-    st.dataframe(df)
+        st.session_state.data["الطلبات"] = pd.concat([df, new_row], ignore_index=True)
+        st.success("تمت الإضافة مؤقتًا")
+    st.dataframe(st.session_state.data["الطلبات"])
